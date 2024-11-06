@@ -185,9 +185,6 @@ with st.container():
         # Tampilkan data yang telah dikonversi ke masalah supervised learning
         st.write("Data supervised learning:")
         st.dataframe(data_supervised)
-              
-        # Menyimpan data ke format XLSX
-        data.to_excel('kualitas_udara.xlsx', index=False)
         
         # Menampilkan data yang telah diproses
         st.dataframe(data, width=600)
