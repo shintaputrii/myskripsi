@@ -148,6 +148,44 @@ with st.container():
         
         # Konversi kolom yang disebutkan ke tipe data integer
         data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
+        # Transform univariate time series to supervised learning problem
+        from numpy import array
+        
+        # Split a univariate sequence into samples
+        def split_sequence(sequence, n_steps):
+            X, y = list(), list()
+            for i in range(len(sequence)):
+                # find the end of this pattern
+                end_ix = i + n_steps
+                # check if we are beyond the sequence
+                if end_ix > len(sequence)-1:
+                    break
+                # gather input and output parts of the pattern
+                seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+                X.append(seq_x)
+                y.append(seq_y)
+            return array(X), array(y)  # transform to a supervised learning problem
+        
+        # Tentukan panjang langkah
+        kolom = 4
+        
+        # Gunakan salah satu polutan (misalnya PM10) sebagai contoh urutan
+        sequence = data['pm_sepuluh'].tolist()
+        X, y = split_sequence(sequence, kolom)
+        
+        # Konversi data fitur (X) ke DataFrame
+        dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+        
+        # Konversi target (y) ke DataFrame
+        datay = pd.DataFrame(y, columns=["Xt"])
+        
+        # Gabungkan DataFrame fitur dan target
+        data_supervised = pd.concat((dataX, datay), axis=1)
+        
+        # Tampilkan data yang telah dikonversi ke masalah supervised learning
+        st.write("Data supervised learning:")
+        st.dataframe(data_supervised)
+              
         # Menyimpan data ke format XLSX
         data.to_excel('kualitas_udara.xlsx', index=False)
         
