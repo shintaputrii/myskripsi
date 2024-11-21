@@ -350,6 +350,9 @@ with st.container():
             data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
             data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target
             
+            from sklearn.preprocessing import MinMaxScaler
+            from sklearn.neighbors import KNeighborsRegressor
+            
             # Function to calculate membership (inverse distance)
             def calculate_membership_inverse(distances, epsilon=1e-10):
                 memberships = 1 / (distances + epsilon)
@@ -371,7 +374,7 @@ with st.container():
                 for i in range(len(X_test)):
                     neighbor_distances = distances[i]
                     neighbor_indices = indices[i]
-                    neighbor_targets = y_train.iloc[neighbor_indices].values
+                    neighbor_targets = y_train.iloc[neighbor_indices].values  # Ensure y_train is a Pandas Series
             
                     # Calculate membership for neighbors
                     memberships = calculate_membership_inverse(neighbor_distances)
@@ -410,16 +413,19 @@ with st.container():
                 X_normalized = scaler.fit_transform(X)
                 y_normalized = scaler.fit_transform(y.reshape(-1, 1))
             
+                # Convert y_train back to Pandas Series (if it was previously converted to NumPy array)
+                y_train = pd.Series(y_normalized.flatten())  # Ensure y_train is a Pandas Series
+            
                 # Split into training and testing sets (you can adjust this split as needed)
                 train_size = int(len(X_normalized) * 0.8)  # 80% for training
                 X_train, X_test = X_normalized[:train_size], X_normalized[train_size:]
-                y_train, y_test = y_normalized[:train_size], y_normalized[train_size:]
+                y_train, y_test = y_train[:train_size], y_train[train_size:]
             
                 # Train Fuzzy KNN model and predict
                 y_test_pred_normalized = fuzzy_knn_predict(X_train, y_train, X_test, k=3)
             
                 # Denormalize the predictions and actual target values
-                y_test_actual = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+                y_test_actual = scaler.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
                 y_test_pred_actual = scaler.inverse_transform(y_test_pred_normalized.reshape(-1, 1)).flatten()
             
                 # Calculate MAPE for the test data in the original scale
@@ -447,8 +453,7 @@ with st.container():
             for polutan in polutan_cols:
                 st.write(f"Prediksi untuk {polutan}:")
                 st.dataframe(pd.DataFrame(normalized_predictions[polutan], columns=[f"Prediksi_{polutan}"]))
-                     
-        
+
     elif selected == "Next Day":   
         st.subheader("PM10")       
         # Fungsi untuk normalisasi data
