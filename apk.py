@@ -224,20 +224,37 @@ with st.container():
         
         # Normalisasi Data
         st.subheader("Normalisasi Data")
-        from sklearn.preprocessing import MinMaxScaler
+        all_supervised_data_normalized = pd.DataFrame()
         
-        # Inisialisasi Min-Max Scaler
-        scaler = MinMaxScaler()
+        # Loop untuk setiap polutan dan buat data supervised learning
+        for polutan in polutan_cols:
+            # Ambil urutan data untuk polutan tersebut
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+            
+            # Konversi data fitur (X) ke DataFrame
+            dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+            
+            # Konversi target (y) ke DataFrame
+            datay = pd.DataFrame(y, columns=["Xt"])
+            
+            # Gabungkan DataFrame fitur dan target
+            data_supervised = pd.concat((dataX, datay), axis=1)
+            
+            # Normalisasi Data Supervised Learning untuk polutan ini
+            scaler = MinMaxScaler()
+            data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi semua kolom kecuali 'Polutan'
+            
+            # Tambahkan kolom identitas polutan
+            data_supervised['Polutan'] = polutan
+            
+            # Gabungkan ke DataFrame gabungan
+            all_supervised_data_normalized = pd.concat([all_supervised_data_normalized, data_supervised], ignore_index=True)
         
-        # List kolom numerik yang akan dinormalisasi
-        columns_to_normalize = polutan_cols  # ['pm_sepuluh', 'pm_duakomalima', ...]
-        
-        # Terapkan normalisasi Min-Max pada kolom numerik
-        data_grouped[columns_to_normalize] = scaler.fit_transform(data_grouped[columns_to_normalize])
-        
-        # Tampilkan data setelah normalisasi
-        st.write("Data Setelah Normalisasi Min-Max:")
-        st.dataframe(data_grouped, width=600)
+        # Tampilkan hasil setelah normalisasi
+        st.write("Data Supervised Learning Setelah Normalisasi Min-Max:")
+        st.dataframe(all_supervised_data_normalized)
+
 
     elif selected == "Hasil MAPE":
         # Membaca dataset dari file Excel
