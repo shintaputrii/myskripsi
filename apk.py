@@ -244,7 +244,7 @@ with st.container():
             # Normalisasi Data Supervised Learning untuk polutan ini
             scaler = MinMaxScaler()
             data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi semua kolom kecuali 'Polutan'
-            
+            data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target (Xt)
             # Tambahkan kolom identitas polutan
             data_supervised['Polutan'] = polutan
             
