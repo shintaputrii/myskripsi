@@ -149,6 +149,10 @@ with st.container():
         # Konversi kolom yang disebutkan ke tipe data integer
         data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
         # Transform univariate time series to supervised learning problem
+
+        # Menampilkan data yang telah diproses
+        st.dataframe(data, width=600)
+        
         from numpy import array
         
         # Split a univariate sequence into samples
@@ -185,9 +189,7 @@ with st.container():
         # Tampilkan data yang telah dikonversi ke masalah supervised learning
         st.write("Data supervised learning:")
         st.dataframe(data_supervised)
-        
-        # Menampilkan data yang telah diproses
-        st.dataframe(data, width=600)
+    
 
         # PLOTING DATA
         st.subheader("""Ploting Data""")
