@@ -251,399 +251,56 @@ with st.container():
             st.dataframe(data_supervised)
 
     elif selected == "Hasil MAPE":
-        # Membaca dataset dari file Excel
-        data = pd.read_excel(
-            "https://raw.githubusercontent.com/shintaputrii/skripsi/main/kualitasudara.xlsx"
-        )
+        st.subheader("Hasil MAPE untuk Setiap Polutan")
+    
+        # Membaca dataset dan memproses ulang data supervised learning per polutan
+        data = pd.read_excel("https://raw.githubusercontent.com/shintaputrii/skripsi/main/kualitasudara.xlsx")
         
-        # Menghapus kolom yang tidak diinginkan
+        # Preprocessing awal
         data = data.drop(['periode_data', 'stasiun', 'parameter_pencemar_kritis', 'max', 'kategori'], axis=1)
-        
-        # Mengganti nilai '-' dengan NaN
         data.replace(r'-+', np.nan, regex=True, inplace=True)
-        
-        # Mengidentifikasi kolom numerik
         numeric_cols = data.select_dtypes(include=np.number).columns
-        
-        # Imputasi mean untuk kolom numerik
         data[numeric_cols] = data[numeric_cols].fillna(data[numeric_cols].mean())
+        polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
         
-        # Konversi kolom PM10 ke tipe data integer
-        data['pm_sepuluh'] = data['pm_sepuluh'].astype(int)
-        # Menyimpan data ke format XLSX
-        data.to_excel('kualitas_udara_.xlsx', index=False)
+        from numpy import array
+        from sklearn.model_selection import train_test_split
+        from sklearn.neighbors import KNeighborsRegressor
+        from sklearn.preprocessing import MinMaxScaler
         
-        # Bagian MODELLING
-        st.subheader("Modelling PM10")
-        
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
-            scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
+        # Fungsi untuk membagi urutan menjadi sampel (supervised learning)
+        def split_sequence(sequence, n_steps):
+            X, y = list(), list()
+            for i in range(len(sequence)):
+                end_ix = i + n_steps
+                if end_ix > len(sequence)-1:
+                    break
+                seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+                X.append(seq_x)
+                y.append(seq_y)
+            return array(X), array(y)
         
         # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
         def calculate_membership_inverse(distances, epsilon=1e-10):
             memberships = 1 / (distances + epsilon)
             return memberships
-        
-        # Fungsi Fuzzy KNN untuk PM10
-        def fuzzy_knn_predict(data, k=3, test_size=0.3):
-            # Normalisasi data PM10
-            imports = data['pm_sepuluh'].values.reshape(-1, 1)
-            data['pm_sepuluh_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['pm_sepuluh_normalized'].values[:-1].reshape(-1, 1)
-            y = data['pm_sepuluh_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
-            # Inisialisasi model KNN
-            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
-            knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
-            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
-            y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan membership
-            for i in range(len(X_test)):
-                neighbor_distances = distances[i]
-                neighbor_indices = indices[i]
-                neighbor_targets = y_train[neighbor_indices]
-                memberships = calculate_membership_inverse(neighbor_distances)
-                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
-            # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
-            y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
-            y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-            
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk pembagian data {int((1-test_size)*100)}% - {int(test_size*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-            # Plotting nilai aktual dan prediksi
-            fig, ax = plt.subplots(figsize=(5, 3))
-            ax.plot(results['Actual'], label='Nilai Aktual', color='blue', linewidth=2)
-            ax.plot(results['Predicted'], label='Nilai Prediksi', color='orange', linewidth=2)
-            ax.set_title('Perbandingan Nilai Aktual dan Prediksi')
-            ax.set_xlabel('Indeks')
-            ax.set_ylabel('Nilai PM10')
-            ax.legend()
-            ax.grid()
-            st.pyplot(fig)
-            return mape
-        # Menyimpan MAPE untuk setiap rasio
-        mapes = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict(data, k=3, test_size=test_size)
-            mapes.append(mape)
-        
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes) + 10)
-        plt.grid(axis='y')
-        st.pyplot(plt)
     
-        # Modeling PM2.5
-        st.subheader("Modelling PM2.5")
-
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
-            scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
-        
-        # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
-        def calculate_membership_inverse(distances, epsilon=1e-10):
-            memberships = 1 / (distances + epsilon)
-            return memberships
-            
-        # Fungsi Fuzzy KNN untuk PM2.5
-        def fuzzy_knn_predict_pm25(data, k=3, test_size=0.3):
-            # Normalisasi data PM2.5
-            imports = data['pm_duakomalima'].values.reshape(-1, 1)
-            data['pm_duakomalima_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['pm_duakomalima_normalized'].values[:-1].reshape(-1, 1)
-            y = data['pm_duakomalima_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
-            # Inisialisasi model KNN
-            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
-            knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
-            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
-            y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan membership
-            for i in range(len(X_test)):
-                neighbor_distances = distances[i]
-                neighbor_indices = indices[i]
-                neighbor_targets = y_train[neighbor_indices]
-                memberships = calculate_membership_inverse(neighbor_distances)
-                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
-            # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
-            y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
-            y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-            
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk pembagian data {int((1-test_size)*100)}% - {int(test_size*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-        
-            return mape
-        
-        # Menyimpan MAPE untuk setiap rasio PM2.5
-        mapes_pm25 = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict_pm25(data, k=3, test_size=test_size)
-            mapes_pm25.append(mape)
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes_pm25, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data PM2.5')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes_pm25) + 10)
-        plt.grid(axis='y')
-        
-        # Menggunakan Streamlit untuk menampilkan plot
-        st.pyplot(plt)
-        
-        # Modeling Sulfur Dioksida
-        st.subheader("Modelling Sulfur Dioksida")
-        
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
-            scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
-        
-        # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
-        def calculate_membership_inverse(distances, epsilon=1e-10):
-            memberships = 1 / (distances + epsilon)
-            return memberships
-        
-        # Fungsi Fuzzy KNN untuk Sulfur Dioksida
-        def fuzzy_knn_predict_sulfur(data, k=3, test_size=0.3):
-            # Normalisasi data Sulfur Dioksida
-            imports = data['sulfur_dioksida'].values.reshape(-1, 1)
-            data['sulfur_dioksida_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['sulfur_dioksida_normalized'].values[:-1].reshape(-1, 1)
-            y = data['sulfur_dioksida_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
-            # Inisialisasi model KNN
-            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
-            knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
-            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
-            y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan membership
-            for i in range(len(X_test)):
-                neighbor_distances = distances[i]
-                neighbor_indices = indices[i]
-                neighbor_targets = y_train[neighbor_indices]
-                memberships = calculate_membership_inverse(neighbor_distances)
-                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
-            # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
-            y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
-            y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-            
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk pembagian data {int((1-test_size)*100)}% - {int(test_size*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-        
-            return mape
-        
-        # Menyimpan MAPE untuk setiap rasio Sulfur Dioksida
-        mapes_sulfur = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict_sulfur(data, k=3, test_size=test_size)
-            mapes_sulfur.append(mape)
-
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes_sulfur, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes_sulfur) + 10)
-        plt.grid(axis='y')
-        st.pyplot(plt)
-        
-        # Modeling Karbon Monoksida
-        st.subheader("Modelling Karbon Monoksida")
-        
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
-            scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
-        
-        # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
-        def calculate_membership_inverse(distances, epsilon=1e-10):
-            memberships = 1 / (distances + epsilon)
-            return memberships
-        
-        # Fungsi Fuzzy KNN
-        def fuzzy_knn_predict_co(data, k=3, sigma=1.0, test_size=0.3):
-            # Normalisasi data
-            imports = data['karbon_monoksida'].values.reshape(-1, 1)
-            data['karbon_monoksida_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['karbon_monoksida_normalized'].values[:-1].reshape(-1, 1)
-            y = data['karbon_monoksida_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
-            # Inisialisasi model KNN
-            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
-            knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
-            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
-            y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan membership
-            for i in range(len(X_test)):
-                neighbor_distances = distances[i]
-                neighbor_indices = indices[i]
-                neighbor_targets = y_train[neighbor_indices]
-                memberships = calculate_membership_inverse(neighbor_distances)
-                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
-            # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
-            y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
-            y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-        
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk Pembagian Data {int((1-test_size)*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-
-            return mape
+        # Fungsi untuk menghitung MAPE
+        def calculate_mape(y_true, y_pred):
+            return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
     
-        # Menyimpan MAPE untuk setiap rasio Karbon Monoksida
-        mapes_co = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict_co(data, k=6, sigma=1.0, test_size=test_size)
-            mapes_co.append(mape)
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes_co, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes_co) + 10)
-        plt.grid(axis='y')
-        st.pyplot(plt)
-        
-        # Modeling Ozon
-        st.subheader("Modelling Ozon")
-        
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
-            scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
-        
-        # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
-        def calculate_membership_inverse(distances, epsilon=1e-10):
-            memberships = 1 / (distances + epsilon)
-            return memberships
-        
-        # Fungsi Fuzzy KNN untuk Ozon
-        def fuzzy_knn_predict_ozon(data, k=3, test_size=0.3):
-            # Normalisasi data Ozon
-            imports = data['ozon'].values.reshape(-1, 1)
-            data['ozon_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['ozon_normalized'].values[:-1].reshape(-1, 1)
-            y = data['ozon_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
+        # Proses Fuzzy k-NN
+        def fuzzy_knn(X_train, y_train, X_test, y_test, scaler, k=3):
             # Inisialisasi model KNN
             knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
             knn.fit(X_train, y_train)
-        
+    
             # Mendapatkan tetangga dan jaraknya
             distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
+            
             # Inisialisasi array untuk menyimpan prediksi
             y_pred = np.zeros(len(X_test))
-        
+            
             # Loop untuk menghitung prediksi berdasarkan membership
             for i in range(len(X_test)):
                 neighbor_distances = distances[i]
@@ -651,120 +308,79 @@ with st.container():
                 neighbor_targets = y_train[neighbor_indices]
                 memberships = calculate_membership_inverse(neighbor_distances)
                 y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
+            
             # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
             y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
             y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-        
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk pembagian data {int((1-test_size)*100)}% - {int(test_size*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-        
-            return mape
-        
-        # Menyimpan MAPE untuk setiap rasio Ozon
-        mapes_ozon = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict_ozon(data, k=3, test_size=test_size)
-            mapes_ozon.append(mape)
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes_ozon, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes_ozon) + 10)
-        plt.grid(axis='y')
-        st.pyplot(plt)
-
-        # Modeling Nitrogen Dioksida
-        st.subheader("Modelling Nitrogen Dioksida")
-        
-        # Fungsi untuk normalisasi data
-        def normalize_data(data):
+            return y_pred_original, y_test_original
+    
+        # Menyimpan hasil MAPE untuk semua polutan
+        mape_results = {}
+    
+        # Proses untuk setiap polutan
+        for polutan in polutan_cols:
+            st.write(f"### Polutan: {polutan}")
+            
+            # Ambil data dan buat data supervised learning
+            sequence = data[polutan].tolist()
+            X, y = split_sequence(sequence, n_steps=4)
+            
+            # Normalisasi data supervised learning
             scaler = MinMaxScaler()
-            normalized_data = scaler.fit_transform(data)
-            return normalized_data, scaler
+            X_normalized = scaler.fit_transform(X)
+            y_normalized = scaler.fit_transform(y.reshape(-1, 1))
+            
+            # Bagi data menjadi train dan test
+            test_sizes = [0.3, 0.2, 0.1]
+            mapes = []
+            
+            for test_size in test_sizes:
+                X_train, X_test, y_train, y_test = train_test_split(X_normalized, y_normalized, test_size=test_size, shuffle=False, random_state=42)
+                
+                # Fuzzy k-NN Prediksi
+                y_pred_original, y_test_original = fuzzy_knn(X_train, y_train, X_test, y_test, scaler, k=3)
+                
+                # Hitung MAPE
+                mape = calculate_mape(y_test_original, y_pred_original)
+                mapes.append(mape)
+                
+                # Menampilkan hasil prediksi
+                st.write(f"Rasio Data Train-Test: {int((1-test_size)*100)}% - {int(test_size*100)}%")
+                st.write(f"MAPE: {mape:.2f}%")
+                results = pd.DataFrame({
+                    'Actual': y_test_original.flatten(),
+                    'Predicted': y_pred_original.flatten()
+                })
+                st.write(results)
+                
+                # Plot hasil prediksi
+                plt.figure(figsize=(8, 4))
+                plt.plot(results['Actual'], label='Actual', color='blue')
+                plt.plot(results['Predicted'], label='Predicted', color='orange')
+                plt.title(f"Perbandingan Nilai Aktual dan Prediksi ({polutan})")
+                plt.xlabel("Indeks")
+                plt.ylabel("Konsentrasi")
+                plt.legend()
+                plt.grid()
+                st.pyplot(plt)
+            
+            # Simpan hasil MAPE untuk polutan ini
+            mape_results[polutan] = mapes
+    
+        # Plotting keseluruhan MAPE untuk semua polutan
+        plt.figure(figsize=(12, 6))
+        bar_width = 0.2
+        indices = np.arange(len(test_sizes))
+        for i, polutan in enumerate(polutan_cols):
+            plt.bar(indices + i * bar_width, mape_results[polutan], bar_width, label=polutan)
         
-        # Fungsi untuk menghitung keanggotaan fuzzy dengan sigma
-        def calculate_membership_inverse(distances, sigma=1.0):
-            memberships = np.exp(- (distances ** 2) / (2 * sigma ** 2))
-            return memberships
-        
-        # Fungsi Fuzzy KNN untuk Nitrogen Dioksida
-        def fuzzy_knn_predict_nitrogen(data, k=6, test_size=0.3, sigma=1.0):
-            # Normalisasi data Nitrogen Dioksida
-            imports = data['nitrogen_dioksida'].values.reshape(-1, 1)
-            data['nitrogen_dioksida_normalized'], scaler = normalize_data(imports)
-        
-            # Ekstrak fitur dan target
-            X = data['nitrogen_dioksida_normalized'].values[:-1].reshape(-1, 1)
-            y = data['nitrogen_dioksida_normalized'].values[1:]
-        
-            # Bagi data menjadi train dan test sesuai rasio yang diberikan
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, shuffle=False)
-        
-            # Menyimpan tanggal untuk test set
-            dates_test = data['tanggal'].values[-len(y_test):]
-        
-            # Inisialisasi model KNN
-            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
-            knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
-            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
-            y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan membership
-            for i in range(len(X_test)):
-                neighbor_distances = distances[i]
-                neighbor_indices = indices[i]
-                neighbor_targets = y_train[neighbor_indices]
-                memberships = calculate_membership_inverse(neighbor_distances, sigma)
-                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
-            # Mengembalikan nilai prediksi dan nilai aktual ke skala awal
-            y_pred_original = scaler.inverse_transform(y_pred.reshape(-1, 1))
-            y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1))
-        
-            # Menghitung MAPE
-            mape = np.mean(np.abs((y_test_original - y_pred_original) / y_test_original)) * 100
-        
-            # Menampilkan hasil prediksi dan nilai aktual
-            results = pd.DataFrame({'Tanggal': dates_test, 'Actual': y_test_original.flatten(), 'Predicted': y_pred_original.flatten()})
-            st.write(f'MAPE untuk pembagian data {int((1-test_size)*100)}% - {int(test_size*100)}%: {mape:.2f}%')
-            st.write("Hasil Prediksi:")
-            st.write(results)
-        
-            return mape
-        
-        # Menyimpan MAPE untuk setiap rasio Nitrogen Dioksida
-        mapes_nitrogen = []
-        test_sizes = [0.3, 0.2, 0.1]  # 70%-30%, 80%-20%, 90%-10%
-        
-        for test_size in test_sizes:
-            mape = fuzzy_knn_predict_nitrogen(data, k=6, test_size=test_size, sigma=1.0)
-            mapes_nitrogen.append(mape)
-        
-        # Plotting MAPE
-        plt.figure(figsize=(8, 5))
-        plt.bar(['70%-30%', '80%-20%', '90%-10%'], mapes_nitrogen, color=['blue', 'orange', 'green'])
-        plt.title('MAPE untuk Berbagai Pembagian Data Nitrogen Dioksida')
-        plt.xlabel('Rasio Pembagian Data')
-        plt.ylabel('MAPE (%)')
-        plt.ylim(0, max(mapes_nitrogen) + 10)
+        plt.title("MAPE untuk Setiap Polutan dan Rasio Data Train-Test")
+        plt.xlabel("Rasio Train-Test")
+        plt.ylabel("MAPE (%)")
+        plt.xticks(indices + bar_width * (len(polutan_cols) / 2 - 0.5), ['70%-30%', '80%-20%', '90%-10%'])
+        plt.legend()
         plt.grid(axis='y')
-        st.pyplot(plt)
-         
+        st.pyplot(plt)      
         
     elif selected == "Next Day":   
         st.subheader("PM10")       
