@@ -148,11 +148,14 @@ with st.container():
         
         # Konversi kolom yang disebutkan ke tipe data integer
         data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
-        # Transform univariate time series to supervised learning problem
+    
+        # Mengelompokkan data berdasarkan 'tanggal' dan menghitung rata-rata untuk kolom numerik
+        data_grouped = data.groupby('tanggal')[numeric_cols].mean().reset_index()
+    
+        # Tampilkan hasil setelah pengelompokan dan perhitungan rata-rata
+        st.write("Data Setelah Pengelompokan Berdasarkan Tanggal dan Perhitungan Rata-Rata:")
+        st.dataframe(data_grouped, width=600)
 
-        # Menampilkan data yang telah diproses
-        st.dataframe(data, width=600)
-        
         from numpy import array
         
         # Split a univariate sequence into samples
