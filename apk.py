@@ -218,33 +218,26 @@ with st.container():
             plt.grid(True)
             plt.legend()
     
-        # Tampilkan plot
+        # Tampilkan plot 
+        plt.tight_layout()
         st.pyplot(plt)
         
         # Normalisasi Data
         st.subheader("Normalisasi Data")
+        from sklearn.preprocessing import MinMaxScaler
+        
+        # Inisialisasi Min-Max Scaler
         scaler = MinMaxScaler()
         
-        # Daftar kolom polutan
-        pollutants = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
+        # List kolom numerik yang akan dinormalisasi
+        columns_to_normalize = polutan_cols  # ['pm_sepuluh', 'pm_duakomalima', ...]
         
-        # Melakukan normalisasi untuk setiap kolom polutan
-        for col in pollutants:
-            with st.expander(f"{col.upper()} - Normalisasi Data"):
-                # Reshape data menjadi 2D array
-                values = data[col].values.reshape(-1, 1)
-                
-                # Fit dan transform data
-                normalized_values = scaler.fit_transform(values)
-                
-                # Masukkan hasil normalisasi ke dalam DataFrame
-                data[f'{col}_normalized'] = normalized_values
-                
-                # Tampilkan hasil normalisasi
-                st.write(data[[col, f'{col}_normalized']])
+        # Terapkan normalisasi Min-Max pada kolom numerik
+        data_grouped[columns_to_normalize] = scaler.fit_transform(data_grouped[columns_to_normalize])
         
-        # Tampilkan semua kolom polutan dan kolom normalisasi mereka
-        st.write(data[[f'{col}' for col in pollutants] + [f'{col}_normalized' for col in pollutants]])
+        # Tampilkan data setelah normalisasi
+        st.write("Data Setelah Normalisasi Min-Max:")
+        st.dataframe(data_grouped, width=600)
 
     elif selected == "Hasil MAPE":
         # Membaca dataset dari file Excel
