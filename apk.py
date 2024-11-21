@@ -148,7 +148,9 @@ with st.container():
         
         # Konversi kolom yang disebutkan ke tipe data integer
         data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
-    
+        # Menampilkan data yang telah diproses
+        st.dataframe(data, width=600)
+        
         # Mengelompokkan data berdasarkan 'tanggal' dan menghitung rata-rata untuk kolom numerik
         data_grouped = data.groupby('tanggal')[numeric_cols].mean().reset_index()
     
@@ -177,7 +179,7 @@ with st.container():
         kolom = 4
         
         # Gunakan salah satu polutan (misalnya PM10) sebagai contoh urutan
-        sequence = data['pm_sepuluh'].tolist()
+        sequence = data_grouped['pm_sepuluh'].tolist()
         X, y = split_sequence(sequence, kolom)
         
         # Konversi data fitur (X) ke DataFrame
@@ -190,7 +192,7 @@ with st.container():
         data_supervised = pd.concat((dataX, datay), axis=1)
         
         # Tampilkan data yang telah dikonversi ke masalah supervised learning
-        st.write("Data supervised learning:")
+        st.write("Data supervised learning PM10:")
         st.dataframe(data_supervised)
     
 
