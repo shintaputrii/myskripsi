@@ -241,20 +241,14 @@ with st.container():
             # Gabungkan DataFrame fitur dan target
             data_supervised = pd.concat((dataX, datay), axis=1)
             
-            # Normalisasi Data Supervised Learning untuk polutan ini
+            # Normalisasi Data Supervised Learning untuk polutan ini, termasuk target
             scaler = MinMaxScaler()
-            data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi semua kolom kecuali 'Polutan'
-            data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target (Xt)
-            # Tambahkan kolom identitas polutan
-            data_supervised['Polutan'] = polutan
+            data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
+            data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target
             
-            # Gabungkan ke DataFrame gabungan
-            all_supervised_data_normalized = pd.concat([all_supervised_data_normalized, data_supervised], ignore_index=True)
-        
-        # Tampilkan hasil setelah normalisasi
-        st.write("Data Supervised Learning Setelah Normalisasi Min-Max:")
-        st.dataframe(all_supervised_data_normalized)
-
+            # Tampilkan hasil setelah normalisasi untuk setiap polutan
+            st.write(f"Data Supervised Learning Setelah Normalisasi Min-Max untuk {polutan}:")
+            st.dataframe(data_supervised)
 
     elif selected == "Hasil MAPE":
         # Membaca dataset dari file Excel
