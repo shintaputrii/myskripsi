@@ -158,43 +158,48 @@ with st.container():
         st.write("Data Setelah Pengelompokan Berdasarkan Tanggal dan Perhitungan Rata-Rata:")
         st.dataframe(data_grouped, width=600)
 
+        # ---- Mulai Menambahkan Kode untuk Supervised Learning ----
         from numpy import array
-        
-        # Split a univariate sequence into samples
+            
+        # Fungsi untuk membagi urutan menjadi sampel
         def split_sequence(sequence, n_steps):
             X, y = list(), list()
             for i in range(len(sequence)):
-                # find the end of this pattern
+                # Tentukan akhir pola
                 end_ix = i + n_steps
-                # check if we are beyond the sequence
+                # Periksa apakah kita sudah melampaui urutan
                 if end_ix > len(sequence)-1:
                     break
-                # gather input and output parts of the pattern
+                # Ambil bagian input dan output dari pola
                 seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
                 X.append(seq_x)
                 y.append(seq_y)
-            return array(X), array(y)  # transform to a supervised learning problem
-        
-        # Tentukan panjang langkah
+            return array(X), array(y)  # ubah menjadi masalah supervised learning
+            
+        # Tentukan panjang langkah (n_steps)
         kolom = 4
-        
-        # Gunakan salah satu polutan (misalnya PM10) sebagai contoh urutan
-        sequence = data_grouped['pm_sepuluh'].tolist()
-        X, y = split_sequence(sequence, kolom)
-        
-        # Konversi data fitur (X) ke DataFrame
-        dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
-        
-        # Konversi target (y) ke DataFrame
-        datay = pd.DataFrame(y, columns=["Xt"])
-        
-        # Gabungkan DataFrame fitur dan target
-        data_supervised = pd.concat((dataX, datay), axis=1)
-        
-        # Tampilkan data yang telah dikonversi ke masalah supervised learning
-        st.write("Data supervised learning PM10:")
-        st.dataframe(data_supervised)
     
+        # List kolom polutan yang ingin diproses
+        polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
+    
+        # Loop untuk setiap polutan dan buat data supervised learning
+        for polutan in polutan_cols:
+            # Ambil urutan data untuk polutan tersebut
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+            
+            # Konversi data fitur (X) ke DataFrame
+            dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+            
+            # Konversi target (y) ke DataFrame
+            datay = pd.DataFrame(y, columns=["Xt"])
+            
+            # Gabungkan DataFrame fitur dan target
+            data_supervised = pd.concat((dataX, datay), axis=1)
+            
+            # Tampilkan data yang telah dikonversi ke masalah supervised learning untuk setiap polutan
+            st.write(f"Data Supervised Learning untuk {polutan}:")
+            st.dataframe(data_supervised)
 
         # PLOTING DATA
         st.subheader("""Ploting Data""")
