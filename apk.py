@@ -202,91 +202,25 @@ with st.container():
             st.dataframe(data_supervised)
 
         # PLOTING DATA
-        st.subheader("""Ploting Data""")
-        # Membaca dataset dari file Excel
-        data = pd.read_excel(
-            "https://raw.githubusercontent.com/shintaputrii/skripsi/main/kualitasudara.xlsx"
-        )
-        
-        # Menghapus kolom yang tidak diinginkan
-        data = data.drop(['periode_data', 'stasiun', 'parameter_pencemar_kritis', 'max', 'kategori'], axis=1)
-        
-        # Mengganti nilai '-' dengan NaN
-        data.replace(r'-+', np.nan, regex=True, inplace=True)
-        
-        # Mengidentifikasi kolom numerik
-        numeric_cols = data.select_dtypes(include=np.number).columns
-        
-        # Imputasi mean untuk kolom numerik
-        data[numeric_cols] = data[numeric_cols].fillna(data[numeric_cols].mean())
-        
-        # Konversi kolom yang disebutkan ke tipe data integer
-        data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
-        
-        # Resample data harian dan menghitung rata-rata
-        data_resample = data.set_index('tanggal').resample('D').mean().reset_index()
-        
+        # ---- Plotting Data untuk Setiap Polutan ----
+        import matplotlib.pyplot as plt
         
         # Menentukan ukuran figure untuk subplot
         plt.figure(figsize=(12, 18))  # Ukuran figure untuk 6 subplot
         
-        # Plot PM10
-        plt.subplot(6, 1, 1)  # 6 baris, 1 kolom, subplot ke-1
-        plt.plot(data_resample['tanggal'], data_resample['pm_sepuluh'], color='red')
-        plt.title('Konsentrasi PM10')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
+        # Loop untuk setiap polutan dan plot datanya
+        for idx, polutan in enumerate(polutan_cols):
+            plt.subplot(6, 1, idx+1)  # 6 baris, 1 kolom, subplot ke-idx+1
+            plt.plot(data_grouped['tanggal'], data_grouped[polutan], label=polutan, color='tab:red' if polutan == 'pm_sepuluh' else 'tab:blue')
+            plt.title(f'Konsentrasi {polutan}')
+            plt.xlabel('Tanggal')
+            plt.ylabel('Konsentrasi (µg/m³)')
+            plt.grid(True)
+            plt.legend()
+    
+        # Tampilkan plot
+        st.pyplot(plt)
         
-        # Plot PM2.5
-        plt.subplot(6, 1, 2)  # subplot ke-2
-        plt.plot(data_resample['tanggal'], data_resample['pm_duakomalima'], color='yellow')
-        plt.title('Konsentrasi PM2.5')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
-        
-        # Plot Karbon Monoksida
-        plt.subplot(6, 1, 3)  # subplot ke-3
-        plt.plot(data_resample['tanggal'], data_resample['karbon_monoksida'], color='green')
-        plt.title('Konsentrasi Karbon Monoksida')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
-        
-        # Plot Ozon
-        plt.subplot(6, 1, 4)  # subplot ke-4
-        plt.plot(data_resample['tanggal'], data_resample['ozon'], color='magenta')
-        plt.title('Konsentrasi Ozon')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
-        
-        # Plot Nitrogen Dioksida
-        plt.subplot(6, 1, 5)  # subplot ke-5
-        plt.plot(data_resample['tanggal'], data_resample['nitrogen_dioksida'], color='black')
-        plt.title('Konsentrasi Nitrogen Dioksida')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
-        
-        # Plot Sulfur Dioksida
-        plt.subplot(6, 1, 6)  # subplot ke-6
-        plt.plot(data_resample['tanggal'], data_resample['sulfur_dioksida'], color='blue')
-        plt.title('Konsentrasi Sulfur Dioksida')
-        plt.xlabel('Tanggal')
-        plt.ylabel('Konsentrasi (µg/m³)')
-        plt.grid()
-        
-        # Menyesuaikan layout untuk menghindari tumpang tindih
-        plt.tight_layout()
-        
-        # Menampilkan plot
-        plt.show()
-        # Setelah plotting
-        st.pyplot()
-
-        # Standardisasi DATA
         # Normalisasi Data
         st.subheader("Normalisasi Data")
         scaler = MinMaxScaler()
