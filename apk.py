@@ -454,41 +454,59 @@ with st.container():
                 st.dataframe(test_results)
 
     elif selected == "Next Day":   
-        st.subheader("Masukkan Konsentrasi SO2 untuk 3 Hari Terakhir")
-        input_data = st.text_input("Masukkan nilai SO2 untuk 3 hari terakhir, dipisahkan dengan koma (contoh: 90,80,80):")
-    
-        if input_data:
-            # Mengubah input string menjadi list float
-            input_values = list(map(float, input_data.split(',')))
-    
-            if len(input_values) != kolom:
-                st.error(f"Harap masukkan {kolom} nilai untuk 3 hari terakhir.")
-            else:
-                # Konversi input data ke DataFrame
-                input_df = pd.DataFrame([input_values], columns=[f'Step_{i+1}' for i in range(kolom)])
-    
-                # Normalisasi data input
-                input_df_normalized = scaler.transform(input_df)
-    
-                # Prediksi menggunakan Fuzzy KNN
-                predictions_scaled = fuzzy_knn_predict(X_train, y_train, input_df_normalized, k=3)
-    
-                # Denormalisasi hasil prediksi untuk menampilkan nilai asli
-                predictions_actual = scaler_y.inverse_transform(predictions_scaled.reshape(-1, 1)).flatten()
-    
-                # Menyusun hasil prediksi dengan tanggal
-                last_date = data_grouped['tanggal'].iloc[-1]  # Tanggal terakhir di data training
-                predicted_dates = pd.date_range(start=last_date, periods=4, freq='D')[1:]  # Tanggal berikutnya
-    
-                predicted_results = pd.DataFrame({
+        import streamlit as st
+        import pandas as pd
+        import numpy as np
+        from sklearn.preprocessing import MinMaxScaler
+        
+        # Fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna
+        def predict_future_values(X_train, y_train, input_values, k=3, steps=7):
+            # Normalisasi input values
+            input_values_scaled = scaler_X.transform([input_values])
+            future_predictions = []
+        
+            # Iterasi untuk memprediksi setiap hari ke depan
+            for _ in range(steps):
+                # Prediksi nilai untuk hari berikutnya
+                next_prediction = fuzzy_knn_predict(X_train, y_train, input_values_scaled, k=k)[0]
+                future_predictions.append(next_prediction)
+        
+                # Update input values dengan menambahkan prediksi baru dan menghapus nilai pertama
+                input_values_scaled = np.append(input_values_scaled[:, 1:], [[next_prediction]], axis=1)
+        
+            # Denormalisasi hasil prediksi
+            future_predictions_actual = scaler_y.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
+            return future_predictions_actual
+        
+        # Simpan nilai input pengguna
+        input_values = []
+        
+        # Tambahkan tombol untuk setiap nilai yang diinputkan
+        for i in range(4):
+            value = st.number_input(f"Masukkan nilai SO2 untuk hari ke-{i+1}:", min_value=0, step=1)
+            input_values.append(value)
+        
+        # Tombol untuk memproses input
+        if st.button("Prediksi 7 Hari Ke Depan"):
+            try:
+                # Konversi input menjadi array numpy
+                input_values = np.array(input_values)
+        
+                # Prediksi 7 hari ke depan
+                future_predictions = predict_future_values(X_train, y_train, input_values)
+        
+                # Membuat DataFrame untuk menampilkan hasil
+                predicted_dates = pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')
+                predicted_df = pd.DataFrame({
                     "tanggal": predicted_dates,
-                    "predicted_so2": predictions_actual
+                    "predicted_so2": future_predictions
                 })
-    
-                # Menampilkan hasil prediksi di Streamlit
-                st.write("Hasil Prediksi SO2 untuk 4 Hari ke Depan:")
-                st.dataframe(predicted_results)
-
+        
+                # Menampilkan DataFrame di Streamlit
+                st.write("Hasil Prediksi 7 Hari ke Depan:")
+                st.dataframe(predicted_df)
+            except Exception as e:
+                st.error(f"Terjadi kesalahan: {e}")
 
     # Menampilkan penanda
     st.markdown("---")  # Menambahkan garis pemisah
