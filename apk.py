@@ -341,11 +341,11 @@ with st.container():
             scaler = MinMaxScaler()
             data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
             data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target
-            
         from sklearn.model_selection import train_test_split
         from sklearn.metrics import mean_absolute_percentage_error
         from sklearn.preprocessing import MinMaxScaler
         import numpy as np
+        import pandas as pd
         
         # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
         def calculate_membership_inverse(distances, epsilon=1e-10):
@@ -378,7 +378,7 @@ with st.container():
         
             return y_pred
         
-        # Menyiapkan variabel untuk hasil
+        # Hasil prediksi dan evaluasi
         results = []
         
         # Loop untuk semua polutan
@@ -408,29 +408,23 @@ with st.container():
             y_test_denormalized = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
         
             # Menghitung MAPE
-            mape = mean_absolute_percentage_error(y_test_denormalized, y_pred)
+            mape = mean_absolute_percentage_error(y_test_denormalized, y_pred) * 100  # Persentase
         
-            # Simpan hasil
-            results.append({
-                'Polutan': polutan,
-                'MAPE': mape,
-                'Aktual': y_test_denormalized,
-                'Prediksi': y_pred
+            # Gabungkan tanggal, actual, dan predicted ke DataFrame
+            result_df = pd.DataFrame({
+                'Tanggal': data_grouped['tanggal'].iloc[-len(y_test):].values,
+                'Actual': y_test_denormalized,
+                'Predicted': y_pred
             })
         
-        # Menampilkan hasil
-        results_df = pd.DataFrame(results)
-        st.write("Hasil Prediksi dan MAPE untuk Setiap Polutan:")
-        st.dataframe(results_df)
+            # Menampilkan hasil untuk polutan ini
+            st.subheader(f"Hasil Prediksi untuk {polutan}")
+            st.write(f"MAPE: {mape:.2f}%")
+            st.write("Hasil Prediksi:")
+            st.dataframe(result_df)
         
-        # Visualisasi Prediksi vs Aktual
-        for result in results:
-            st.line_chart({
-                'Aktual': result['Aktual'],
-                'Prediksi': result['Prediksi']
-            }, use_container_width=True, title=f"Prediksi vs Aktual untuk {result['Polutan']}")
-                 
-
+            # Simpan hasil untuk referensi tambahan jika diperlukan
+            results.append({'Polutan': polutan, 'MAPE': mape, 'Result': result_df})
     elif selected == "Next Day":   
         st.subheader("PM10")       
         # Fungsi untuk normalisasi data
