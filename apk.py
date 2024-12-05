@@ -454,35 +454,40 @@ with st.container():
                 st.dataframe(test_results)
 
     elif selected == "Next Day":   
-        st.subheader("Input Data Manual untuk Prediksi 4 Hari ke Depan")
-        input_data = []
-        for i in range(4):
-            st.write(f"Hari ke-{i+1}")
-            input_values = []
-            for j in range(kolom):
-                value = st.number_input(f"Step {j+1} (Hari {i+1}):", key=f"step_{i+1}_{j+1}")
-                input_values.append(value)
-            input_data.append(input_values)
+        st.subheader("Masukkan Konsentrasi SO2 untuk 4 Hari Terakhir")
+        input_data = st.text_input("Masukkan nilai SO2 untuk 4 hari terakhir, dipisahkan dengan koma (contoh: 90,90,80,80):")
     
-        # Konversi input data ke DataFrame
-        input_df = pd.DataFrame(input_data, columns=[f'Step_{i+1}' for i in range(kolom)])
+        if input_data:
+            # Mengubah input string menjadi list float
+            input_values = list(map(float, input_data.split(',')))
     
-        # Normalisasi data input
-        input_df_normalized = scaler.transform(input_df)
+            if len(input_values) != kolom:
+                st.error(f"Harap masukkan {kolom} nilai untuk 4 hari terakhir.")
+            else:
+                # Konversi input data ke DataFrame
+                input_df = pd.DataFrame([input_values], columns=[f'Step_{i+1}' for i in range(kolom)])
     
-        # Prediksi menggunakan Fuzzy KNN
-        predictions_scaled = fuzzy_knn_predict(X_train, y_train, input_df_normalized, k=3)
+                # Normalisasi data input
+                input_df_normalized = scaler.transform(input_df)
     
-        # Denormalisasi hasil prediksi untuk menampilkan nilai asli
-        predictions_actual = scaler_y.inverse_transform(predictions_scaled.reshape(-1, 1)).flatten()
+                # Prediksi menggunakan Fuzzy KNN
+                predictions_scaled = fuzzy_knn_predict(X_train, y_train, input_df_normalized, k=3)
     
-        # Menampilkan hasil prediksi di Streamlit
-        st.subheader("Hasil Prediksi untuk 4 Hari ke Depan")
-        predicted_results = pd.DataFrame({
-            "Hari": [f"Hari ke-{i+1}" for i in range(4)],
-            "Predicted Value": predictions_actual
-        })
-        st.dataframe(predicted_results)
+                # Denormalisasi hasil prediksi untuk menampilkan nilai asli
+                predictions_actual = scaler_y.inverse_transform(predictions_scaled.reshape(-1, 1)).flatten()
+    
+                # Menyusun hasil prediksi dengan tanggal
+                last_date = data_grouped['tanggal'].iloc[-1]  # Tanggal terakhir di data training
+                predicted_dates = pd.date_range(start=last_date, periods=5, freq='D')[1:]  # Tanggal berikutnya
+    
+                predicted_results = pd.DataFrame({
+                    "tanggal": predicted_dates,
+                    "predicted_so2": predictions_actual
+                })
+    
+                # Menampilkan hasil prediksi di Streamlit
+                st.write("Hasil Prediksi SO2 untuk 4 Hari ke Depan:")
+                st.dataframe(predicted_results)
 
 
     # Menampilkan penanda
