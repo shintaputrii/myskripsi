@@ -643,6 +643,7 @@ with st.container():
         st.write("Prediksi semua polutan:")
         # Dictionary untuk menyimpan data target (y_train) untuk setiap polutan
         y_train_dict = {}
+        scaler_dict = {}
         
         # Loop untuk setiap polutan dan buat data supervised learning
         for polutan in polutan_cols:
@@ -660,22 +661,22 @@ with st.container():
             data_supervised.iloc[:, :-1] = scaler_X.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
             data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
         
-            # Simpan data training dan scaler di dictionary
+            # Simpan data training, scaler, dan target (y_train) di dictionary
             X_train = data_supervised.iloc[:, :-1]
             y_train = data_supervised['Xt']
             y_train_dict[polutan] = y_train
+            scaler_dict[polutan] = scaler_y
         
         # Modifikasi fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
-        def predict_future_values_all_polutans(X_train, y_train_dict, input_values, k=3, steps=7):
+        def predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values, k=3, steps=7):
             # Normalisasi input values
             input_values_scaled = scaler_X.transform([input_values])
             future_predictions_all = {}
         
             # Iterasi untuk memprediksi setiap polutan
             for polutan in polutan_cols:
-                scaler_y = MinMaxScaler()
+                scaler_y = scaler_dict[polutan]
                 y_train = y_train_dict[polutan]
-                scaler_y.fit(y_train.values.reshape(-1, 1))  # Fit ulang scaler untuk setiap polutan
         
                 future_predictions = []
         
@@ -704,7 +705,7 @@ with st.container():
                 input_values = np.array(input_values)
         
                 # Prediksi 7 hari ke depan untuk semua polutan
-                future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, input_values)
+                future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values)
         
                 # Menampilkan hasil untuk setiap polutan
                 for polutan, predictions in future_predictions_all.items():
