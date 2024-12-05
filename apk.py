@@ -252,7 +252,94 @@ with st.container():
 
     elif selected == "Hasil MAPE":
         st.subheader("Hasil MAPE untuk Setiap Polutan")
-            
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import mean_absolute_percentage_error
+        from sklearn.preprocessing import MinMaxScaler
+        import numpy as np
+        
+        # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
+        def calculate_membership_inverse(distances, epsilon=1e-10):
+            memberships = 1 / (distances + epsilon)  # Menghindari pembagian dengan nol
+            return memberships
+        
+        # Fungsi untuk prediksi menggunakan Fuzzy KNN
+        def fuzzy_knn_predict(X_train, y_train, X_test, k=3):
+            # Inisialisasi model KNN
+            knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
+            knn.fit(X_train, y_train)
+        
+            # Mendapatkan tetangga dan jaraknya
+            distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
+        
+            # Inisialisasi array untuk menyimpan prediksi
+            y_pred = np.zeros(len(X_test))
+        
+            # Loop untuk menghitung prediksi berdasarkan keanggotaan fuzzy
+            for i in range(len(X_test)):
+                neighbor_distances = distances[i]
+                neighbor_indices = indices[i]
+                neighbor_targets = y_train.iloc[neighbor_indices].values
+        
+                # Hitung membership untuk tetangga-tetangga ini
+                memberships = calculate_membership_inverse(neighbor_distances)
+        
+                # Hitung prediksi sebagai weighted average berdasarkan keanggotaan fuzzy
+                y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
+        
+            return y_pred
+        
+        # Menyiapkan variabel untuk hasil
+        results = []
+        
+        # Loop untuk semua polutan
+        for polutan in polutan_cols:
+            # Ambil urutan data untuk polutan
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+        
+            # Normalisasi data
+            scaler = MinMaxScaler()
+            X_normalized = scaler.fit_transform(X)
+            y_normalized = scaler.fit_transform(y.reshape(-1, 1)).flatten()
+        
+            # Membagi data ke dalam data latih dan uji
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_normalized, y_normalized, train_size=0.8, test_size=0.2, shuffle=False
+            )
+        
+            # Konversi y_train ke DataFrame untuk indexing
+            y_train_df = pd.DataFrame(y_train)
+        
+            # Prediksi menggunakan Fuzzy KNN
+            y_pred_normalized = fuzzy_knn_predict(pd.DataFrame(X_train), y_train_df, pd.DataFrame(X_test))
+        
+            # Denormalisasi data prediksi dan aktual
+            y_pred = scaler.inverse_transform(y_pred_normalized.reshape(-1, 1)).flatten()
+            y_test_denormalized = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+        
+            # Menghitung MAPE
+            mape = mean_absolute_percentage_error(y_test_denormalized, y_pred)
+        
+            # Simpan hasil
+            results.append({
+                'Polutan': polutan,
+                'MAPE': mape,
+                'Aktual': y_test_denormalized,
+                'Prediksi': y_pred
+            })
+        
+        # Menampilkan hasil
+        results_df = pd.DataFrame(results)
+        st.write("Hasil Prediksi dan MAPE untuk Setiap Polutan:")
+        st.dataframe(results_df)
+        
+        # Visualisasi Prediksi vs Aktual
+        for result in results:
+            st.line_chart({
+                'Aktual': result['Aktual'],
+                'Prediksi': result['Prediksi']
+            }, use_container_width=True, title=f"Prediksi vs Aktual untuk {result['Polutan']}")
+                 
 
     elif selected == "Next Day":   
         st.subheader("PM10")       
