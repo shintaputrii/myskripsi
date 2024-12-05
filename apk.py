@@ -453,7 +453,12 @@ with st.container():
                 st.write("Hasil Prediksi:")
                 st.dataframe(test_results)
             import matplotlib.pyplot as plt
-            # Loop untuk setiap polutan dan membuat plot batang per polutan
+            import seaborn as sns
+            
+            # Menyimpan hasil MAPE untuk setiap polutan dan rasio data
+            mape_results = []
+            
+            # Loop untuk setiap polutan dan perbandingan rasio data
             for polutan in polutan_cols:
                 sequence = data_grouped[polutan].tolist()
                 X, y = split_sequence(sequence, kolom)
@@ -462,54 +467,52 @@ with st.container():
                 datay = pd.DataFrame(y, columns=["Xt"])
                 data_supervised = pd.concat((dataX, datay), axis=1)
                 
-                # Normalisasi Data
                 scaler_X = MinMaxScaler()
                 scaler_y = MinMaxScaler()
-                
+            
                 data_supervised.iloc[:, :-1] = scaler_X.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
                 data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
-                
-                mape_values = []
-                train_ratios = [0.7, 0.8, 0.9]
-                
-                # Split data menjadi train dan test dengan rasio yang berbeda dan hitung MAPE
-                for train_size in train_ratios:
+            
+                for train_size in [0.7, 0.8, 0.9]:
                     X_train, X_test, y_train, y_test = train_test_split(
                         data_supervised.iloc[:, :-1],
                         data_supervised['Xt'],
                         train_size=train_size,
                         random_state=42
                     )
-                    
-                    # Prediksi pada data uji
+            
                     y_test_pred_scaled = fuzzy_knn_predict(X_train, y_train, X_test, k=3)
-                    
-                    # Denormalisasi hasil prediksi dan target aktual
+            
                     y_test_actual = scaler_y.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
                     y_test_pred_actual = scaler_y.inverse_transform(y_test_pred_scaled.reshape(-1, 1)).flatten()
-                    
-                    # Menghitung MAPE pada data uji dalam skala asli
-                    mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
-                    mape_values.append(mape_test)
-                
-                # Plotting untuk polutan ini
-                plt.figure(figsize=(10, 6))
-                bar_width = 0.2
-                index = np.arange(len(train_ratios))
-                colors = ['blue', 'green', 'red']  # Warna untuk masing-masing rasio
-                
-                for i, mape_value in enumerate(mape_values):
-                    plt.bar(index + i * bar_width, mape_value, bar_width, color=colors[i], label=f'Rasio {int(train_ratios[i] * 100)}:{int((1 - train_ratios[i]) * 100)}')
             
-                plt.xlabel('Rasio Train-Test (%)')
-                plt.ylabel('MAPE (%)')
-                plt.title(f'Perbandingan MAPE untuk {polutan}')
-                plt.xticks(index + bar_width, [f'Rasio {int(train_ratios[i] * 100)}:{int((1 - train_ratios[i]) * 100)}' for i in range(len(train_ratios))])
-                plt.legend()
-                plt.grid(axis='y', linestyle='--', alpha=0.5)
-                plt.tight_layout()
-                st.pyplot(plt)
-
+                    mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
+            
+                    # Menyimpan hasil MAPE untuk plotting
+                    mape_results.append({
+                        'Polutan': polutan,
+                        'Train Size': f"{int(train_size * 100)}%",
+                        'MAPE': mape_test
+                    })
+            
+            # Membuat DataFrame untuk hasil MAPE
+            mape_df = pd.DataFrame(mape_results)
+            
+            # Plot MAPE untuk setiap rasio dan polutan
+            plt.figure(figsize=(14, 7))
+            sns.barplot(x='Polutan', y='MAPE', hue='Train Size', data=mape_df)
+            plt.title('Perbandingan MAPE untuk Rasio 70:30, 80:20, dan 90:10 pada Polutan')
+            plt.ylabel('MAPE (%)')
+            plt.xlabel('Polutan')
+            plt.xticks(rotation=45)
+            plt.legend(title='Rasio Training')
+            
+            # Jika menggunakan Streamlit, gunakan st.pyplot()
+            import streamlit as st
+            st.pyplot(plt)
+            
+            # Jika menggunakan Jupyter Notebook, tambahkan plt.show() untuk menampilkan plot
+            plt.show()
 
     elif selected == "Next Day":   
         # Membaca dataset dari file Excel
