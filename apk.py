@@ -499,9 +499,6 @@ with st.container():
                     # Simpan hasil MAPE per polutan
                     train_ratio = int(train_size * 100)
                     mape_dict[(polutan, train_ratio)] = mape_test
-                    
-                    # Tampilkan hasil di Streamlit
-                    st.write(f"Rasio {train_ratio}:{100 - train_ratio} - MAPE untuk {polutan}: {mape_test:.2f}%")
                 
                 # Plotting hasil MAPE per rasio
                 plt.figure(figsize=(10, 5))
@@ -510,6 +507,12 @@ with st.container():
                 plt.xlabel('Rasio Train-Test')
                 plt.ylabel('MAPE (%)')
                 plt.show()
+            
+                # Tampilkan plot di Streamlit
+                st.pyplot(plt)
+            
+                # Clear plot untuk iterasi berikutnya
+                plt.clf()
             
             # Tampilkan semua hasil MAPE di Streamlit
             st.write("Hasil MAPE untuk setiap polutan dan rasio:")
