@@ -440,7 +440,9 @@ with st.container():
                 mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
         
                 # Tampilkan hasil di Streamlit
-                st.write(f"Rasio {int(train_size*100)}:{int((1-train_size)*100)} - MAPE untuk {polutan}: {mape_test:.2f}%")
+                train_ratio = int(train_size * 100)
+                test_ratio = 100 - train_ratio
+                st.write(f"Rasio {train_ratio}:{test_ratio} - MAPE untuk {polutan}: {mape_test:.2f}%")
                 
                 # Menampilkan hasil prediksi dan nilai aktual pada data uji di Streamlit
                 test_results = pd.DataFrame({
