@@ -453,11 +453,7 @@ with st.container():
                 st.write("Hasil Prediksi:")
                 st.dataframe(test_results)
             import matplotlib.pyplot as plt
-            
-            # Dictionary untuk menyimpan hasil MAPE per polutan
-            mape_dict = {}
-            
-            # Loop untuk setiap polutan
+            # Loop untuk setiap polutan dan membuat plot batang per polutan
             for polutan in polutan_cols:
                 sequence = data_grouped[polutan].tolist()
                 X, y = split_sequence(sequence, kolom)
@@ -473,8 +469,11 @@ with st.container():
                 data_supervised.iloc[:, :-1] = scaler_X.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
                 data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
                 
-                # Split data menjadi train dan test dengan rasio yang berbeda
-                for train_size in [0.7, 0.8, 0.9]:
+                mape_values = []
+                train_ratios = [0.7, 0.8, 0.9]
+                
+                # Split data menjadi train dan test dengan rasio yang berbeda dan hitung MAPE
+                for train_size in train_ratios:
                     X_train, X_test, y_train, y_test = train_test_split(
                         data_supervised.iloc[:, :-1],
                         data_supervised['Xt'],
@@ -491,27 +490,25 @@ with st.container():
                     
                     # Menghitung MAPE pada data uji dalam skala asli
                     mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
-                    
-                    # Simpan hasil MAPE per polutan
-                    train_ratio = int(train_size * 100)
-                    mape_dict[(polutan, train_ratio)] = mape_test
-                    
-                    # Tampilkan hasil di Streamlit
-                    st.write(f"Rasio {train_ratio}:{100 - train_ratio} - MAPE untuk {polutan}: {mape_test:.2f}%")
+                    mape_values.append(mape_test)
+                
+                # Plotting untuk polutan ini
+                plt.figure(figsize=(10, 6))
+                bar_width = 0.2
+                index = np.arange(len(train_ratios))
+                colors = ['blue', 'green', 'red']  # Warna untuk masing-masing rasio
+                
+                for i, mape_value in enumerate(mape_values):
+                    plt.bar(index + i * bar_width, mape_value, bar_width, color=colors[i], label=f'Rasio {int(train_ratios[i] * 100)}:{int((1 - train_ratios[i]) * 100)}')
             
-            # Plotting hasil MAPE untuk setiap polutan di akhir
-            plt.figure(figsize=(15, 8))
-            for i, polutan in enumerate(polutan_cols):
-                mape_values = [mape_dict[(polutan, train_ratio)] for train_ratio in [70, 80, 90]]
-                plt.plot([70, 80, 90], mape_values, marker='o', label=polutan)
-            
-            plt.title('Perbandingan MAPE untuk Setiap Polutan')
-            plt.xlabel('Rasio Train-Test (%)')
-            plt.ylabel('MAPE (%)')
-            plt.legend()
-            plt.grid()
-            plt.tight_layout()
-            st.pyplot(plt)
+                plt.xlabel('Rasio Train-Test (%)')
+                plt.ylabel('MAPE (%)')
+                plt.title(f'Perbandingan MAPE untuk {polutan}')
+                plt.xticks(index + bar_width, [f'Rasio {int(train_ratios[i] * 100)}:{int((1 - train_ratios[i]) * 100)}' for i in range(len(train_ratios))])
+                plt.legend()
+                plt.grid(axis='y', linestyle='--', alpha=0.5)
+                plt.tight_layout()
+                st.pyplot(plt)
 
 
     elif selected == "Next Day":   
