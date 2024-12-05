@@ -721,5 +721,32 @@ with st.container():
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
 
+        # Fungsi untuk menggabungkan hasil prediksi semua polutan dan mencari nilai maksimum per tanggal
+        def find_max_pollutant_per_date(predicted_data_dict):
+            # Gabungkan hasil prediksi dari semua polutan
+            combined_df = pd.DataFrame({'tanggal': predicted_data_dict[polutan].index})
+            for polutan, predictions in predicted_data_dict.items():
+                combined_df[polutan] = predictions
+        
+            # Temukan polutan dengan nilai maksimum untuk setiap tanggal
+            combined_df['max_pollutan'] = combined_df.iloc[:, 1:].idxmax(axis=1)
+            combined_df['max_value'] = combined_df.iloc[:, 1:].max(axis=1)
+        
+            return combined_df
+        
+        # Prediksi 7 hari ke depan untuk semua polutan
+        future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values)
+        
+        # Membuat DataFrame untuk menyimpan hasil prediksi 7 hari ke depan
+        predicted_data_dict = {polutan: pd.Series(predictions, index=pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')) for polutan, predictions in future_predictions_all.items()}
+        
+        # Mencari nilai maksimum per tanggal dan polutan
+        result_df = find_max_pollutant_per_date(predicted_data_dict)
+        
+        # Menampilkan DataFrame hasil prediksi dan polutan dengan nilai maksimum per tanggal
+        st.write("Hasil Prediksi 7 Hari ke Depan dan Polutan dengan Nilai Maksimum per Tanggal:")
+        st.dataframe(result_df)
+
+
     st.markdown("---")  # Menambahkan garis pemisah
     st.write("Shinta Alya Imani Putri-200411100005 (Teknik Informatika)")
