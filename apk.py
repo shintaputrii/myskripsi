@@ -641,7 +641,31 @@ with st.container():
                 # Menghitung MAPE pada data uji dalam skala asli
                 mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
         st.write("Prediksi semua polutan:")
-        # Fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
+        # Dictionary untuk menyimpan data target (y_train) untuk setiap polutan
+        y_train_dict = {}
+        
+        # Loop untuk setiap polutan dan buat data supervised learning
+        for polutan in polutan_cols:
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+        
+            dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+            datay = pd.DataFrame(y, columns=["Xt"])
+            data_supervised = pd.concat((dataX, datay), axis=1)
+        
+            # Normalisasi Data
+            scaler_X = MinMaxScaler()
+            scaler_y = MinMaxScaler()
+        
+            data_supervised.iloc[:, :-1] = scaler_X.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
+            data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
+        
+            # Simpan data training dan scaler di dictionary
+            X_train = data_supervised.iloc[:, :-1]
+            y_train = data_supervised['Xt']
+            y_train_dict[polutan] = y_train
+        
+        # Modifikasi fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
         def predict_future_values_all_polutans(X_train, y_train_dict, input_values, k=3, steps=7):
             # Normalisasi input values
             input_values_scaled = scaler_X.transform([input_values])
@@ -696,8 +720,5 @@ with st.container():
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
 
-
-
-    # Menampilkan penanda
     st.markdown("---")  # Menambahkan garis pemisah
     st.write("Shinta Alya Imani Putri-200411100005 (Teknik Informatika)")
