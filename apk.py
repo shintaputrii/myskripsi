@@ -640,32 +640,37 @@ with st.container():
         
                 # Menghitung MAPE pada data uji dalam skala asli
                 mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
-        
-        # Fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna
-        def predict_future_values(X_train, y_train, input_values, k=3, steps=7):
+        st.write("Prediksi semua polutan:")
+        # Fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
+        def predict_future_values_all_polutans(X_train, y_train_dict, input_values, k=3, steps=7):
             # Normalisasi input values
             input_values_scaled = scaler_X.transform([input_values])
-            future_predictions = []
+            future_predictions_all = {}
         
-            # Iterasi untuk memprediksi setiap hari ke depan
-            for _ in range(steps):
-                # Prediksi nilai untuk hari berikutnya
-                next_prediction = fuzzy_knn_predict(X_train, y_train, input_values_scaled, k=k)[0]
-                future_predictions.append(next_prediction)
+            # Iterasi untuk memprediksi setiap polutan
+            for polutan in polutan_cols:
+                scaler_y = MinMaxScaler()
+                y_train = y_train_dict[polutan]
+                scaler_y.fit(y_train.values.reshape(-1, 1))  # Fit ulang scaler untuk setiap polutan
         
-                # Update input values dengan menambahkan prediksi baru dan menghapus nilai pertama
-                input_values_scaled = np.append(input_values_scaled[:, 1:], [[next_prediction]], axis=1)
+                future_predictions = []
         
-            # Denormalisasi hasil prediksi
-            future_predictions_actual = scaler_y.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
-            return future_predictions_actual
+                # Prediksi untuk setiap langkah ke depan
+                for _ in range(steps):
+                    next_prediction = fuzzy_knn_predict(X_train, y_train, input_values_scaled, k=k)[0]
+                    future_predictions.append(next_prediction)
+                    input_values_scaled = np.append(input_values_scaled[:, 1:], [[next_prediction]], axis=1)
         
-        # Simpan nilai input pengguna
+                # Denormalisasi hasil prediksi
+                future_predictions_actual = scaler_y.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
+                future_predictions_all[polutan] = future_predictions_actual
+        
+            return future_predictions_all
+        
+        # Input untuk setiap polutan oleh pengguna
         input_values = []
-        
-        # Tambahkan tombol untuk setiap nilai yang diinputkan
         for i in range(4):
-            value = st.number_input(f"Masukkan nilai SO2 untuk hari ke-{i+1}:", min_value=0, step=1)
+            value = st.number_input(f"Masukkan nilai untuk hari ke-{i+1}:", min_value=0, step=1)
             input_values.append(value)
         
         # Tombol untuk memproses input
@@ -674,21 +679,24 @@ with st.container():
                 # Konversi input menjadi array numpy
                 input_values = np.array(input_values)
         
-                # Prediksi 7 hari ke depan
-                future_predictions = predict_future_values(X_train, y_train, input_values)
+                # Prediksi 7 hari ke depan untuk semua polutan
+                future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, input_values)
         
-                # Membuat DataFrame untuk menampilkan hasil
-                predicted_dates = pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')
-                predicted_df = pd.DataFrame({
-                    "tanggal": predicted_dates,
-                    "predicted_so2": future_predictions
-                })
+                # Menampilkan hasil untuk setiap polutan
+                for polutan, predictions in future_predictions_all.items():
+                    predicted_dates = pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')
+                    predicted_df = pd.DataFrame({
+                        "tanggal": predicted_dates,
+                        f"predicted_{polutan}": predictions
+                    })
         
-                # Menampilkan DataFrame di Streamlit
-                st.write("Hasil Prediksi 7 Hari ke Depan:")
-                st.dataframe(predicted_df)
+                    st.write(f"Hasil Prediksi 7 Hari ke Depan untuk {polutan.capitalize()}:")
+                    st.dataframe(predicted_df)
+        
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
+
+
 
     # Menampilkan penanda
     st.markdown("---")  # Menambahkan garis pemisah
