@@ -454,15 +454,15 @@ with st.container():
                 st.dataframe(test_results)
 
     elif selected == "Next Day":   
-        st.subheader("Masukkan Konsentrasi SO2 untuk 4 Hari Terakhir")
-        input_data = st.text_input("Masukkan nilai SO2 untuk 4 hari terakhir, dipisahkan dengan koma (contoh: 90,90,80,80):")
+        st.subheader("Masukkan Konsentrasi SO2 untuk 3 Hari Terakhir")
+        input_data = st.text_input("Masukkan nilai SO2 untuk 3 hari terakhir, dipisahkan dengan koma (contoh: 90,80,80):")
     
         if input_data:
             # Mengubah input string menjadi list float
             input_values = list(map(float, input_data.split(',')))
     
             if len(input_values) != kolom:
-                st.error(f"Harap masukkan {kolom} nilai untuk 4 hari terakhir.")
+                st.error(f"Harap masukkan {kolom} nilai untuk 3 hari terakhir.")
             else:
                 # Konversi input data ke DataFrame
                 input_df = pd.DataFrame([input_values], columns=[f'Step_{i+1}' for i in range(kolom)])
@@ -478,7 +478,7 @@ with st.container():
     
                 # Menyusun hasil prediksi dengan tanggal
                 last_date = data_grouped['tanggal'].iloc[-1]  # Tanggal terakhir di data training
-                predicted_dates = pd.date_range(start=last_date, periods=5, freq='D')[1:]  # Tanggal berikutnya
+                predicted_dates = pd.date_range(start=last_date, periods=4, freq='D')[1:]  # Tanggal berikutnya
     
                 predicted_results = pd.DataFrame({
                     "tanggal": predicted_dates,
