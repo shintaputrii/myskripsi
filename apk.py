@@ -454,7 +454,7 @@ with st.container():
                 st.dataframe(test_results)
             import matplotlib.pyplot as plt
             
-            # Menginisialisasi dictionary untuk menyimpan MAPE
+            # Dictionary untuk menyimpan hasil MAPE per polutan
             mape_dict = {}
             
             # Loop untuk setiap polutan
@@ -472,9 +472,6 @@ with st.container():
                 
                 data_supervised.iloc[:, :-1] = scaler_X.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
                 data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
-                
-                # List untuk menyimpan MAPE pada setiap rasio
-                mape_values = []
                 
                 # Split data menjadi train dan test dengan rasio yang berbeda
                 for train_size in [0.7, 0.8, 0.9]:
@@ -494,29 +491,29 @@ with st.container():
                     
                     # Menghitung MAPE pada data uji dalam skala asli
                     mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
-                    mape_values.append(mape_test)
                     
                     # Simpan hasil MAPE per polutan
                     train_ratio = int(train_size * 100)
                     mape_dict[(polutan, train_ratio)] = mape_test
-                
-                # Plotting hasil MAPE per rasio
-                plt.figure(figsize=(10, 5))
+                    
+                    # Tampilkan hasil di Streamlit
+                    st.write(f"Rasio {train_ratio}:{100 - train_ratio} - MAPE untuk {polutan}: {mape_test:.2f}%")
+            
+            # Plotting hasil MAPE untuk setiap polutan di akhir
+            plt.figure(figsize=(15, 8))
+            
+            # Loop untuk membuat plot per polutan
+            for i, polutan in enumerate(polutan_cols):
+                mape_values = [mape_dict[(polutan, train_ratio)] for train_ratio in [70, 80, 90]]
+                plt.subplot(len(polutan_cols), 1, i+1)
                 plt.bar([f"Rasio {train_ratio}" for train_ratio in [70, 80, 90]], mape_values, color='skyblue')
                 plt.title(f'Perbandingan MAPE untuk {polutan}')
                 plt.xlabel('Rasio Train-Test')
                 plt.ylabel('MAPE (%)')
-                plt.show()
             
-                # Tampilkan plot di Streamlit
-                st.pyplot(plt)
-            
-                # Clear plot untuk iterasi berikutnya
-                plt.clf()
-            
-            # Tampilkan semua hasil MAPE di Streamlit
-            st.write("Hasil MAPE untuk setiap polutan dan rasio:")
-            st.write(mape_dict)
+            plt.tight_layout()
+            st.pyplot(plt)
+
 
     elif selected == "Next Day":   
         # Membaca dataset dari file Excel
