@@ -680,12 +680,12 @@ with st.container():
                 return "Sangat Tidak Sehat"
             else:
                 return "Berbahaya"
-        
+
         # Modifikasi fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
         def predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values, k=3, steps=7):
             # Normalisasi input values
             input_values_scaled = scaler_X.transform([input_values])
-            future_predictions_all = {}
+            all_predictions_df = pd.DataFrame()  # DataFrame untuk menggabungkan semua prediksi
         
             # Iterasi untuk memprediksi setiap polutan
             for polutan in polutan_cols:
@@ -702,14 +702,25 @@ with st.container():
         
                 # Denormalisasi hasil prediksi
                 future_predictions_actual = scaler_y.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
-                future_predictions_all[polutan] = future_predictions_actual
         
-                # Mencetak nilai maksimum dan kategori
-                max_prediction = np.max(future_predictions_actual)
-                category = categorize_prediction(max_prediction)
-                print(f"Prediksi maksimum untuk {polutan.capitalize()}: {max_prediction} ({category})")
+                # Membuat DataFrame untuk hasil prediksi dari polutan ini
+                predicted_dates = pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=steps, freq='D')
+                predicted_df = pd.DataFrame({
+                    "tanggal": predicted_dates,
+                    polutan: future_predictions_actual
+                })
         
-            return future_predictions_all
+                # Menggabungkan DataFrame ini dengan DataFrame utama
+                if all_predictions_df.empty:
+                    all_predictions_df = predicted_df
+                else:
+                    all_predictions_df = pd.merge(all_predictions_df, predicted_df, on="tanggal", how="outer")
+        
+            # Menambahkan kolom nilai maksimum dan kategori
+            all_predictions_df['Max_Value'] = all_predictions_df.iloc[:, 1:].max(axis=1)
+            all_predictions_df['Kategori'] = all_predictions_df['Max_Value'].apply(categorize_prediction)
+        
+            return all_predictions_df
         
         # Input untuk setiap polutan oleh pengguna
         input_values = []
@@ -724,22 +735,14 @@ with st.container():
                 input_values = np.array(input_values)
         
                 # Prediksi 7 hari ke depan untuk semua polutan
-                future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values)
+                all_predictions_df = predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values)
         
-                # Menampilkan hasil untuk setiap polutan
-                for polutan, predictions in future_predictions_all.items():
-                    predicted_dates = pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')
-                    predicted_df = pd.DataFrame({
-                        "tanggal": predicted_dates,
-                        f"predicted_{polutan}": predictions
-                    })
-        
-                    st.write(f"Hasil Prediksi 7 Hari ke Depan untuk {polutan.capitalize()}:")
-                    st.dataframe(predicted_df)
+                # Menampilkan hasil sebagai tabel
+                st.write("Hasil Prediksi 7 Hari ke Depan untuk Semua Polutan:")
+                st.dataframe(all_predictions_df)
         
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
-
 
 
     st.markdown("---")  # Menambahkan garis pemisah
