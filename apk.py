@@ -252,6 +252,96 @@ with st.container():
 
     elif selected == "Hasil MAPE":
         st.subheader("Hasil MAPE untuk Setiap Polutan")
+        # Membaca dataset dari file Excel
+        data = pd.read_excel(
+            "https://raw.githubusercontent.com/shintaputrii/skripsi/main/kualitasudara.xlsx"
+        )
+        
+        # Menghapus kolom yang tidak diinginkan
+        data = data.drop(['periode_data', 'stasiun', 'parameter_pencemar_kritis', 'max', 'kategori'], axis=1)
+        
+        # Mengganti nilai '-' dengan NaN
+        data.replace(r'-+', np.nan, regex=True, inplace=True)
+        
+        # Menampilkan jumlah missing value per kolom
+        missing_values = data.isnull().sum()
+        
+        # Mengidentifikasi kolom numerik
+        numeric_cols = data.select_dtypes(include=np.number).columns
+        
+        # Imputasi mean untuk kolom numerik
+        data[numeric_cols] = data[numeric_cols].fillna(data[numeric_cols].mean())
+        
+        # Konversi kolom yang disebutkan ke tipe data integer
+        data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
+        # Menampilkan data yang telah diproses
+        
+        # Mengelompokkan data berdasarkan 'tanggal' dan menghitung rata-rata untuk kolom numerik
+        data_grouped = data.groupby('tanggal')[numeric_cols].mean().reset_index()
+
+        # ---- Mulai Menambahkan Kode untuk Supervised Learning ----
+        from numpy import array
+            
+        # Fungsi untuk membagi urutan menjadi sampel
+        def split_sequence(sequence, n_steps):
+            X, y = list(), list()
+            for i in range(len(sequence)):
+                # Tentukan akhir pola
+                end_ix = i + n_steps
+                # Periksa apakah kita sudah melampaui urutan
+                if end_ix > len(sequence)-1:
+                    break
+                # Ambil bagian input dan output dari pola
+                seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+                X.append(seq_x)
+                y.append(seq_y)
+            return array(X), array(y)  # ubah menjadi masalah supervised learning
+            
+        # Tentukan panjang langkah (n_steps)
+        kolom = 4
+    
+        # List kolom polutan yang ingin diproses
+        polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
+    
+        # Loop untuk setiap polutan dan buat data supervised learning
+        for polutan in polutan_cols:
+            # Ambil urutan data untuk polutan tersebut
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+            
+            # Konversi data fitur (X) ke DataFrame
+            dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+            
+            # Konversi target (y) ke DataFrame
+            datay = pd.DataFrame(y, columns=["Xt"])
+            
+            # Gabungkan DataFrame fitur dan target
+            data_supervised = pd.concat((dataX, datay), axis=1)
+            
+        # Normalisasi Data
+        st.subheader("Normalisasi Data")
+        all_supervised_data_normalized = pd.DataFrame()
+        
+        # Loop untuk setiap polutan dan buat data supervised learning
+        for polutan in polutan_cols:
+            # Ambil urutan data untuk polutan tersebut
+            sequence = data_grouped[polutan].tolist()
+            X, y = split_sequence(sequence, kolom)
+            
+            # Konversi data fitur (X) ke DataFrame
+            dataX = pd.DataFrame(X, columns=[f'Step_{i+1}' for i in range(kolom)])
+            
+            # Konversi target (y) ke DataFrame
+            datay = pd.DataFrame(y, columns=["Xt"])
+            
+            # Gabungkan DataFrame fitur dan target
+            data_supervised = pd.concat((dataX, datay), axis=1)
+            
+            # Normalisasi Data Supervised Learning untuk polutan ini, termasuk target
+            scaler = MinMaxScaler()
+            data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
+            data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target
+            
         from sklearn.model_selection import train_test_split
         from sklearn.metrics import mean_absolute_percentage_error
         from sklearn.preprocessing import MinMaxScaler
