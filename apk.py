@@ -317,10 +317,6 @@ with st.container():
             
             # Gabungkan DataFrame fitur dan target
             data_supervised = pd.concat((dataX, datay), axis=1)
-            
-        # Normalisasi Data
-        st.subheader("Normalisasi Data")
-        all_supervised_data_normalized = pd.DataFrame()
         
         # Loop untuk setiap polutan dan buat data supervised learning
         for polutan in polutan_cols:
