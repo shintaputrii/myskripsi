@@ -341,91 +341,112 @@ with st.container():
             scaler = MinMaxScaler()
             data_supervised.iloc[:, :-1] = scaler.fit_transform(data_supervised.iloc[:, :-1])  # Normalisasi fitur
             data_supervised['Xt'] = scaler.fit_transform(data_supervised[['Xt']])  # Normalisasi target
-        from sklearn.model_selection import train_test_split
-        from sklearn.metrics import mean_absolute_percentage_error
-        from sklearn.preprocessing import MinMaxScaler
-        import numpy as np
+        import streamlit as st
         import pandas as pd
+        import numpy as np
+        from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import MinMaxScaler
+        from sklearn.neighbors import KNeighborsRegressor
         
         # Fungsi untuk menghitung keanggotaan fuzzy (inverse distance)
         def calculate_membership_inverse(distances, epsilon=1e-10):
-            memberships = 1 / (distances + epsilon)  # Menghindari pembagian dengan nol
+            memberships = 1 / (distances + epsilon)
             return memberships
         
-        # Fungsi untuk prediksi menggunakan Fuzzy KNN
+        # Fungsi Fuzzy KNN
         def fuzzy_knn_predict(X_train, y_train, X_test, k=3):
-            # Inisialisasi model KNN
             knn = KNeighborsRegressor(n_neighbors=k, weights='distance')
             knn.fit(X_train, y_train)
-        
-            # Mendapatkan tetangga dan jaraknya
             distances, indices = knn.kneighbors(X_test, n_neighbors=k, return_distance=True)
-        
-            # Inisialisasi array untuk menyimpan prediksi
             y_pred = np.zeros(len(X_test))
-        
-            # Loop untuk menghitung prediksi berdasarkan keanggotaan fuzzy
             for i in range(len(X_test)):
                 neighbor_distances = distances[i]
                 neighbor_indices = indices[i]
                 neighbor_targets = y_train.iloc[neighbor_indices].values
-        
-                # Hitung membership untuk tetangga-tetangga ini
                 memberships = calculate_membership_inverse(neighbor_distances)
-        
-                # Hitung prediksi sebagai weighted average berdasarkan keanggotaan fuzzy
                 y_pred[i] = np.sum(memberships * neighbor_targets) / np.sum(memberships)
-        
             return y_pred
         
-        # Hasil prediksi dan evaluasi
-        results = []
+        # Fungsi untuk membagi urutan menjadi sampel
+        def split_sequence(sequence, n_steps):
+            X, y = [], []
+            for i in range(len(sequence)):
+                end_ix = i + n_steps
+                if end_ix > len(sequence)-1:
+                    break
+                seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+                X.append(seq_x)
+                y.append(seq_y)
+            return np.array(X), np.array(y)
         
-        # Loop untuk semua polutan
-        for polutan in polutan_cols:
-            # Ambil urutan data untuk polutan
-            sequence = data_grouped[polutan].tolist()
-            X, y = split_sequence(sequence, kolom)
+        # Membaca dataset
+        data_url = "https://raw.githubusercontent.com/shintaputrii/skripsi/main/kualitasudara.xlsx"
+        data = pd.read_excel(data_url)
         
-            # Normalisasi data
-            scaler = MinMaxScaler()
-            X_normalized = scaler.fit_transform(X)
-            y_normalized = scaler.fit_transform(y.reshape(-1, 1)).flatten()
+        # Proses awal data
+        data = data.drop(['periode_data', 'stasiun', 'parameter_pencemar_kritis', 'max', 'kategori'], axis=1)
+        data.replace(r'-+', np.nan, regex=True, inplace=True)
+        missing_values = data.isnull().sum()
+        st.write("Jumlah Missing Value per Kolom:")
+        st.dataframe(missing_values[missing_values > 0].reset_index(name='missing_values'))
+        numeric_cols = data.select_dtypes(include=np.number).columns
+        data[numeric_cols] = data[numeric_cols].fillna(data[numeric_cols].mean())
+        data[['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']] = data[
+            ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']].astype(int)
+        st.dataframe(data)
         
-            # Membagi data ke dalam data latih dan uji
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_normalized, y_normalized, train_size=0.8, test_size=0.2, shuffle=False
-            )
+        # Pengelompokan data
+        data_grouped = data.groupby('tanggal')[numeric_cols].mean().reset_index()
+        st.write("Data Setelah Pengelompokan Berdasarkan Tanggal:")
+        st.dataframe(data_grouped)
         
-            # Konversi y_train ke DataFrame untuk indexing
-            y_train_df = pd.DataFrame(y_train)
+        # Parameter tetap
+        n_steps = 3
+        k_neighbors = 3
+        polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
         
-            # Prediksi menggunakan Fuzzy KNN
-            y_pred_normalized = fuzzy_knn_predict(pd.DataFrame(X_train), y_train_df, pd.DataFrame(X_test))
+        # Rasio pembagian data
+        split_ratios = [(0.7, 0.3), (0.8, 0.2), (0.9, 0.1)]
         
-            # Denormalisasi data prediksi dan aktual
-            y_pred = scaler.inverse_transform(y_pred_normalized.reshape(-1, 1)).flatten()
-            y_test_denormalized = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+        if st.button("Prediksi"):
+            for polutan in polutan_cols:
+                st.subheader(f"Proses untuk {polutan}")
+        
+                # Konversi ke masalah supervised learning
+                sequence = data_grouped[polutan].tolist()
+                X, y = split_sequence(sequence, n_steps)
+        
+                # Normalisasi
+                scaler = MinMaxScaler()
+                X_scaled = scaler.fit_transform(X)
+                y_scaled = scaler.fit_transform(y.reshape(-1, 1)).flatten()
+        
+                for train_ratio, test_ratio in split_ratios:
+                    # Split data
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X_scaled, y_scaled, test_size=test_ratio, random_state=42
+                    )
+                    y_train_df = pd.DataFrame(y_train)
+        
+                    # Prediksi dengan Fuzzy KNN
+                    y_test_pred_scaled = fuzzy_knn_predict(pd.DataFrame(X_train), y_train_df, pd.DataFrame(X_test), k=k_neighbors)
+        
+                    # Denormalisasi hasil
+                    y_test_actual = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+                    y_test_pred_actual = scaler.inverse_transform(y_test_pred_scaled.reshape(-1, 1)).flatten()
+        
+                    # Menghitung MAPE
+                    mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
+        
+                    # Tampilkan hasil
+                    st.write(f"Rasio {int(train_ratio*100)}:{int(test_ratio*100)} - MAPE untuk {polutan}: {mape_test:.2f}%")
+                    test_results = pd.DataFrame({
+                        "Tanggal": data_grouped['tanggal'].iloc[-len(y_test):].values,
+                        "Actual": y_test_actual,
+                        "Predicted": y_test_pred_actual
+                    })
+                    st.dataframe(test_results)
 
-        
-            # Menghitung MAPE
-            mape = mean_absolute_percentage_error(y_test_denormalized, y_pred) * 100  # Persentase
-        
-            # Gabungkan tanggal, actual, dan predicted ke DataFrame
-            result_df = pd.DataFrame({
-                'Tanggal': data_grouped['tanggal'].iloc[-len(y_test):].values,
-                'Actual': y_test_denormalized,
-                'Predicted': y_pred
-            })
-        
-            # Menampilkan hasil untuk polutan ini
-            st.subheader(f"Hasil Prediksi untuk {polutan}")
-            st.write(f"MAPE: {mape:.2f}%")
-            st.write("Hasil Prediksi:")
-            st.dataframe(result_df)
-        
-            # Simpan hasil untuk referensi tambahan jika diperlukan
-            results.append({'Polutan': polutan, 'MAPE': mape, 'Result': result_df})
 
     elif selected == "Next Day":   
         st.subheader("PM10")       
