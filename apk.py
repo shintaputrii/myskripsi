@@ -668,6 +668,20 @@ with st.container():
             scaler_dict[polutan] = scaler_y
         
         # Modifikasi fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
+        # Fungsi untuk mengkategorikan nilai prediksi
+        def categorize_prediction(value):
+            if value <= 50:
+                return "Baik"
+            elif value <= 100:
+                return "Sedang"
+            elif value <= 150:
+                return "Tidak Sehat"
+            elif value <= 200:
+                return "Sangat Tidak Sehat"
+            else:
+                return "Berbahaya"
+        
+        # Modifikasi fungsi untuk memprediksi 7 hari ke depan berdasarkan input pengguna untuk semua polutan
         def predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values, k=3, steps=7):
             # Normalisasi input values
             input_values_scaled = scaler_X.transform([input_values])
@@ -689,6 +703,11 @@ with st.container():
                 # Denormalisasi hasil prediksi
                 future_predictions_actual = scaler_y.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
                 future_predictions_all[polutan] = future_predictions_actual
+        
+                # Mencetak nilai maksimum dan kategori
+                max_prediction = np.max(future_predictions_actual)
+                category = categorize_prediction(max_prediction)
+                print(f"Prediksi maksimum untuk {polutan.capitalize()}: {max_prediction} ({category})")
         
             return future_predictions_all
         
@@ -721,31 +740,6 @@ with st.container():
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {e}")
 
-        # Fungsi untuk menggabungkan hasil prediksi semua polutan dan mencari nilai maksimum per tanggal
-        def find_max_pollutant_per_date(predicted_data_dict):
-            # Pastikan semua data di predicted_data_dict adalah pd.Series dengan indeks yang valid
-            combined_df = pd.DataFrame({'tanggal': predicted_data_dict[next(iter(predicted_data_dict))].index})
-            for polutan, predictions in predicted_data_dict.items():
-                combined_df[polutan] = predictions.values  # Menggunakan .values untuk memastikan hanya nilai yang diambil
-        
-            # Temukan polutan dengan nilai maksimum untuk setiap tanggal
-            combined_df['max_pollutan'] = combined_df.iloc[:, 1:].idxmax(axis=1)
-            combined_df['max_value'] = combined_df.iloc[:, 1:].max(axis=1)
-        
-            return combined_df
-        
-        # Prediksi 7 hari ke depan untuk semua polutan
-        future_predictions_all = predict_future_values_all_polutans(X_train, y_train_dict, scaler_dict, input_values)
-        
-        # Membuat DataFrame untuk menyimpan hasil prediksi 7 hari ke depan
-        predicted_data_dict = {polutan: pd.Series(predictions, index=pd.date_range(start=data_grouped['tanggal'].max() + pd.Timedelta(days=1), periods=7, freq='D')) for polutan, predictions in future_predictions_all.items()}
-        
-        # Mencari nilai maksimum per tanggal dan polutan
-        result_df = find_max_pollutant_per_date(predicted_data_dict)
-        
-        # Menampilkan DataFrame hasil prediksi dan polutan dengan nilai maksimum per tanggal
-        st.write("Hasil Prediksi 7 Hari ke Depan dan Polutan dengan Nilai Maksimum per Tanggal:")
-        st.dataframe(result_df)
 
 
     st.markdown("---")  # Menambahkan garis pemisah
