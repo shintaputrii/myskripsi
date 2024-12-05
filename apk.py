@@ -723,10 +723,10 @@ with st.container():
 
         # Fungsi untuk menggabungkan hasil prediksi semua polutan dan mencari nilai maksimum per tanggal
         def find_max_pollutant_per_date(predicted_data_dict):
-            # Gabungkan hasil prediksi dari semua polutan
-            combined_df = pd.DataFrame({'tanggal': predicted_data_dict[polutan].index})
+            # Pastikan semua data di predicted_data_dict adalah pd.Series dengan indeks yang valid
+            combined_df = pd.DataFrame({'tanggal': predicted_data_dict[next(iter(predicted_data_dict))].index})
             for polutan, predictions in predicted_data_dict.items():
-                combined_df[polutan] = predictions
+                combined_df[polutan] = predictions.values  # Menggunakan .values untuk memastikan hanya nilai yang diambil
         
             # Temukan polutan dengan nilai maksimum untuk setiap tanggal
             combined_df['max_pollutan'] = combined_df.iloc[:, 1:].idxmax(axis=1)
