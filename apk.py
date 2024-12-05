@@ -388,10 +388,6 @@ with st.container():
         # Mengelompokkan data berdasarkan 'tanggal' dan menghitung rata-rata
         data_grouped = data.groupby('tanggal')[numeric_cols].mean().reset_index()
         
-        # Menampilkan data yang telah diproses di Streamlit
-        st.write("Data Setelah Pengelompokan Berdasarkan Tanggal dan Perhitungan Rata-Rata:")
-        st.dataframe(data_grouped)
-        
         # Fungsi untuk membagi urutan menjadi sampel
         def split_sequence(sequence, n_steps):
             X, y = list(), list()
