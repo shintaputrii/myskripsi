@@ -403,24 +403,20 @@ with st.container():
             # Prediksi menggunakan Fuzzy KNN
             y_pred_normalized = fuzzy_knn_predict(pd.DataFrame(X_train), y_train_df, pd.DataFrame(X_test))
         
-            # Denormalisasi hasil prediksi dan target aktual
-            y_test_actual = scaler.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
-            y_test_pred_actual = scaler.inverse_transform(y_test_pred.reshape(-1, 1)).flatten()
-            
-            # Menghitung MAPE pada data pengujian dalam skala asli
-            mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
-            
-            # Menampilkan MAPE untuk pengujian dalam skala asli
-            print(f'\nMAPE : {mape_test:.2f}%')
-            
-            # Menampilkan hasil prediksi dan nilai aktual pada data pengujian
-            test_results = pd.DataFrame({
-                'Tanggal': data_grouped['tanggal'].iloc[-len(y_test):].values, 
-                'Actual': y_test_actual, 
-                'Predicted': y_test_pred_actual
+            # Denormalisasi data prediksi dan aktual
+            y_pred = scaler.inverse_transform(y_pred_normalized.reshape(-1, 1)).flatten()
+            y_test_denormalized = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+
+        
+            # Menghitung MAPE
+            mape = mean_absolute_percentage_error(y_test_denormalized, y_pred) * 100  # Persentase
+        
+            # Gabungkan tanggal, actual, dan predicted ke DataFrame
+            result_df = pd.DataFrame({
+                'Tanggal': data_grouped['tanggal'].iloc[-len(y_test):].values,
+                'Actual': y_test_denormalized,
+                'Predicted': y_pred
             })
-            print("Hasil Prediksi :")
-            print(test_results)
         
             # Menampilkan hasil untuk polutan ini
             st.subheader(f"Hasil Prediksi untuk {polutan}")
@@ -430,6 +426,7 @@ with st.container():
         
             # Simpan hasil untuk referensi tambahan jika diperlukan
             results.append({'Polutan': polutan, 'MAPE': mape, 'Result': result_df})
+
     elif selected == "Next Day":   
         st.subheader("PM10")       
         # Fungsi untuk normalisasi data
