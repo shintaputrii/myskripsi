@@ -499,7 +499,7 @@ with st.container():
             return array(X), array(y)  # ubah menjadi masalah supervised learning
             
         # Tentukan panjang langkah (n_steps)
-        kolom = 4
+        kolom = 5
     
         # List kolom polutan yang ingin diproses
         polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
@@ -602,7 +602,7 @@ with st.container():
             return np.array(X), np.array(y)
         
         # Parameter untuk split sequence
-        kolom = 4
+        kolom = 5
         polutan_cols = ['pm_sepuluh', 'pm_duakomalima', 'sulfur_dioksida', 'karbon_monoksida', 'ozon', 'nitrogen_dioksida']
         
         # Loop untuk setiap polutan
@@ -723,7 +723,7 @@ with st.container():
         
         # Input untuk setiap polutan oleh pengguna
         input_values = []
-        for i in range(4):
+        for i in range(5):
             value = st.number_input(f"Masukkan nilai untuk hari ke-{i+1}:", min_value=0, step=1)
             input_values.append(value)
         
