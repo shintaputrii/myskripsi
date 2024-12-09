@@ -723,7 +723,7 @@ with st.container():
         
         # Input untuk setiap polutan oleh pengguna
         input_values = []
-        for i in range(5):
+        for i in range(kolom):
             value = st.number_input(f"Masukkan nilai untuk hari ke-{i+1}:", min_value=0, step=1)
             input_values.append(value)
         
