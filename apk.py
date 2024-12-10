@@ -622,12 +622,12 @@ with st.container():
             data_supervised['Xt'] = scaler_y.fit_transform(data_supervised[['Xt']])  # Normalisasi target
         
             # Split data menjadi train dan test dengan rasio 90:10
-                X_train, X_test, y_train, y_test = train_test_split(
-                    data_supervised.iloc[:, :-1],
-                    data_supervised['Xt'],
-                    train_size=0.9,
-                    random_state=42
-                )
+            X_train, X_test, y_train, y_test = train_test_split(
+                data_supervised.iloc[:, :-1],
+                data_supervised['Xt'],
+                train_size=0.9,
+                random_state=42
+            )
                 # Prediksi pada data uji
                 y_test_pred_scaled = fuzzy_knn_predict(X_train, y_train, X_test, k=3)
         
