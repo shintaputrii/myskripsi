@@ -628,15 +628,17 @@ with st.container():
                 train_size=0.9,
                 random_state=42
             )
-                # Prediksi pada data uji
-                y_test_pred_scaled = fuzzy_knn_predict(X_train, y_train, X_test, k=3)
+            # Prediksi pada data uji
+            y_test_pred_scaled = fuzzy_knn_predict(X_train, y_train, X_test, k=3)
         
-                # Denormalisasi hasil prediksi dan target aktual
-                y_test_actual = scaler_y.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
-                y_test_pred_actual = scaler_y.inverse_transform(y_test_pred_scaled.reshape(-1, 1)).flatten()
+            # Denormalisasi hasil prediksi dan target aktual
+            y_test_actual = scaler_y.inverse_transform(y_test.values.reshape(-1, 1)).flatten()
+            y_test_pred_actual = scaler_y.inverse_transform(y_test_pred_scaled.reshape(-1, 1)).flatten()
         
-                # Menghitung MAPE pada data uji dalam skala asli
-                mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
+            # Menghitung MAPE pada data uji dalam skala asli
+            mape_test = np.mean(np.abs((y_test_actual - y_test_pred_actual) / y_test_actual)) * 100
+            
+            print(f"Polutan: {polutan}, MAPE: {mape_test:.2f}%")
         st.write("Prediksi semua polutan:")
         # Dictionary untuk menyimpan data target (y_train) untuk setiap polutan
         y_train_dict = {}
